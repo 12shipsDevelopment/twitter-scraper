@@ -89,6 +89,12 @@ type (
 		Error error
 	}
 
+	TweetResultWithCursor struct {
+		Tweet
+		Cursor string
+		Error  error
+	}
+
 	ScheduledTweet struct {
 		ID        string
 		State     string

@@ -92,6 +92,11 @@ func (s *Scraper) SearchTweets(ctx context.Context, query string, maxTweetsNbr i
 	return getTweetTimeline(ctx, query, maxTweetsNbr, s.FetchSearchTweets)
 }
 
+// SearchTweets returns channel with tweets for a given search query
+func (s *Scraper) SearchTweetsWithCursor(ctx context.Context, query string, cursor string, maxTweetsNbr int) <-chan *TweetResultWithCursor {
+	return getTweetTimelineWithCursor(ctx, query, maxTweetsNbr, cursor, s.FetchSearchTweets)
+}
+
 // SearchProfiles returns channel with profiles for a given search query
 func (s *Scraper) SearchProfiles(ctx context.Context, query string, maxProfilesNbr int) <-chan *ProfileResult {
 	return getUserTimeline(ctx, query, maxProfilesNbr, s.FetchSearchProfiles)
