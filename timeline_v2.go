@@ -117,6 +117,8 @@ type entry struct {
 	} `json:"content"`
 }
 
+type TimelineV2 timelineV2
+
 // timeline v2 JSON object
 type timelineV2 struct {
 	Data struct {
