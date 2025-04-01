@@ -180,3 +180,11 @@ func (s *Scraper) SetUserAgent(userAgent string) {
 func (s *Scraper) GetUserAgent() string {
 	return s.userAgent
 }
+
+func (s *Scraper) GetBearerToken() string {
+	return s.bearerToken
+}
+
+func (s *Scraper) GetGuestTokenStr() string {
+	return s.guestToken
+}

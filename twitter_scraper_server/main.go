@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"twitter_scraper_server/config"
 	"twitter_scraper_server/handlers"
+	"twitter_scraper_server/services"
 
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 )
 
 func main() {
@@ -13,9 +15,11 @@ func main() {
 
 	router := gin.Default()
 
-	handlers.HandleAccountRoutes(router, cfg)
-	handlers.HandleTweetsRoutes(router, cfg)
+	as := services.NewAccountService(cfg)
 
-	fmt.Println("Server started on :", cfg.Port)
+	handlers.HandleAccountRoutes(router, cfg, as)
+	handlers.HandleTweetsRoutes(router, cfg, as)
+
+	logrus.Info("Server started on :", cfg.Port)
 	router.Run(fmt.Sprintf(":%d", cfg.Port))
 }

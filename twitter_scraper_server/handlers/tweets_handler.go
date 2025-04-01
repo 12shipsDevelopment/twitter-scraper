@@ -9,8 +9,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func HandleTweetsRoutes(router *gin.Engine, cfg *config.Config) {
-	ts := services.NewTweetsService(cfg)
+func HandleTweetsRoutes(router *gin.Engine, cfg *config.Config, as *services.AccountService) {
+	ts := services.NewTweetsService(cfg, as)
 
 	// UserTweetsAndReplies
 	router.GET("i/api/graphql/bt4TKuFz4T7Ckk-VvQVSow/UserTweetsAndReplies", func(c *gin.Context) {

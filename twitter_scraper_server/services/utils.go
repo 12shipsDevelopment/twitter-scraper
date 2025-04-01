@@ -2,9 +2,37 @@ package services
 
 import (
 	"encoding/json"
+	"math/rand"
 	"net/http"
 	"strconv"
+	"time"
+
+	"github.com/sirupsen/logrus"
 )
+
+func init() {
+	rng = rand.New(rand.NewSource(time.Now().UnixNano()))
+}
+
+func RandomSleep() {
+	duration := minSleepDuration + time.Duration(rng.Int63n(int64(maxSleepDuration-minSleepDuration)))
+	logrus.Debugf("Sleeping for %v", duration)
+	time.Sleep(duration)
+}
+
+func GetRateLimitDuration() time.Duration {
+	return RateLimitDuration
+}
+
+func filterMap[T any, R any](slice []T, f func(T) (R, bool)) []R {
+	result := make([]R, 0, len(slice))
+	for _, v := range slice {
+		if r, ok := f(v); ok {
+			result = append(result, r)
+		}
+	}
+	return result
+}
 
 func newRequest(method string, url string, withRelies bool) (*http.Request, error) {
 	req, err := http.NewRequest(method, url, nil)

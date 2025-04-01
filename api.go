@@ -80,6 +80,15 @@ func (s *Scraper) setCSRFToken(req *http.Request) {
 	}
 }
 
+func (s *Scraper) SetCSRFToken(req *http.Request) {
+	for _, cookie := range s.client.Jar.Cookies(req.URL) {
+		if cookie.Name == "ct0" {
+			req.Header.Set("X-CSRF-Token", cookie.Value)
+			break
+		}
+	}
+}
+
 func (s *Scraper) handleResponse(resp *http.Response, target interface{}) error {
 	content, err := io.ReadAll(resp.Body)
 	if err != nil {

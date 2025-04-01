@@ -30,6 +30,8 @@ const (
 	appConsumerSecret = "Bcs59EFbbsdF6Sl9Ng71smgStWEGwXXKSjYvPVt7qys"
 )
 
+type Flow flow
+
 type (
 	OpenAccount struct {
 		OAuthToken       string `json:"oauth_token"`

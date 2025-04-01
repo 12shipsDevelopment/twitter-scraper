@@ -5,18 +5,20 @@ import (
 	"twitter_scraper_server/config"
 
 	twitterscraper "github.com/imperatrona/twitter-scraper"
+	"github.com/sirupsen/logrus"
 )
 
 type TweetsService struct {
 	cfg      *config.Config
 	scrapers []*twitterscraper.Scraper
+	as       *AccountService
 }
 
-func NewTweetsService(cfg *config.Config) *TweetsService {
+func NewTweetsService(cfg *config.Config, as *AccountService) *TweetsService {
 	scrapers := make([]*twitterscraper.Scraper, 0)
 	scrapers = append(scrapers, twitterscraper.New())
 
-	ts := &TweetsService{cfg: cfg, scrapers: scrapers}
+	ts := &TweetsService{cfg, scrapers, as}
 
 	return ts
 }
@@ -29,7 +31,11 @@ func (cs *TweetsService) GetUserTweets(userID string, maxTweetsNbr int, cursor s
 	// get from cache
 
 	// if not in cache, fetch from twitter
-	s := cs.GetNextScraper()
+	s, account, err := cs.as.GetNextAuthenticatedScraper()
+	if err != nil {
+		logrus.Errorf("failed to get scraper of %s, %v", account.Username, err)
+		return twitterscraper.TimelineV2{}, err
+	}
 	req, err := newRequest("GET", "https://twitter.com/i/api/graphql/UGi7tjRPr-d_U3bCPIko5Q/UserTweets", true)
 	if err != nil {
 		return twitterscraper.TimelineV2{}, err
