@@ -10,7 +10,7 @@ import (
 
 func HandleAccountRoutes(router *gin.Engine, cfg *config.Config, as *services.AccountService) {
 	// settings
-	router.GET("1.1/account/settings.json", func(c *gin.Context) {
+	router.GET("/1.1/account/settings.json", func(c *gin.Context) {
 		settings, err := as.GetAccountSettings()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get 1.1/account/settings.json"})
@@ -20,7 +20,7 @@ func HandleAccountRoutes(router *gin.Engine, cfg *config.Config, as *services.Ac
 	})
 
 	// list
-	router.GET("1.1/account/multi/list.json", func(c *gin.Context) {
+	router.GET("/1.1/account/multi/list.json", func(c *gin.Context) {
 		list, err := as.GetAccountList()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get 1.1/account/multi/list.json"})
@@ -29,8 +29,28 @@ func HandleAccountRoutes(router *gin.Engine, cfg *config.Config, as *services.Ac
 		c.JSON(http.StatusOK, list)
 	})
 
+	// verify_credentials
+	router.POST("/1.1/account/verify_credentials.json", func(c *gin.Context) {
+		jsn, err := as.IsLoggedIn()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, jsn)
+	})
+
+	// GetGuestToken from Twitter API
+	router.POST("/1.1/guest/activate.json", func(c *gin.Context) {
+		jsn, err := as.GetGuestToken()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, jsn)
+	})
+
 	// onboarding
-	router.GET("1.1/onboarding/task.json", func(c *gin.Context) {
+	router.POST("/1.1/onboarding/task.json", func(c *gin.Context) {
 		var data map[string]interface{}
 		err := c.BindJSON(&data)
 		if err != nil {
@@ -47,13 +67,13 @@ func HandleAccountRoutes(router *gin.Engine, cfg *config.Config, as *services.Ac
 	})
 
 	// logout
-	router.GET("1.1/account/logout.json", func(c *gin.Context) {
+	router.POST("/1.1/account/logout.json", func(c *gin.Context) {
 		as.Logout()
 		c.JSON(http.StatusOK, "")
 	})
 
 	// GetAccessToken
-	router.GET("oauth2/token", func(c *gin.Context) {
+	router.POST("/oauth2/token", func(c *gin.Context) {
 		token, err := as.GetAccessToken()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get 1.1/account/logout.json"})

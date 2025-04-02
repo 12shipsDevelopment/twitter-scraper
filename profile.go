@@ -46,6 +46,7 @@ type Profile struct {
 	CanHighlightTweets   bool
 }
 
+type User user
 type user struct {
 	Data struct {
 		User struct {

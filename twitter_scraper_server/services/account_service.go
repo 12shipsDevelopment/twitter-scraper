@@ -31,6 +31,7 @@ const (
 	minSleepDuration  = 500 * time.Millisecond
 	maxSleepDuration  = 2 * time.Second
 	RateLimitDuration = 15 * time.Minute
+	bearerToken1      = "AAAAAAAAAAAAAAAAAAAAAFQODgEAAAAAVHTp76lzh3rFzcHbmHVvQxYYpTw%3DckAlMINMjmCwxUcaXbAN4XqJVdgMJaHqNOFgPMK0zN1qLqLQCF"
 	consumerKey       = "3nVuSoBZnx6U4vzUxf5w"
 	consumerSecret    = "Bcs59EFbbsdF6Sl9Ng71smgStWEGwXXKSjYvPVt7qys"
 )
@@ -167,7 +168,7 @@ func NewAccountService(cfg *config.Config) *AccountService {
 	return as
 }
 
-func (as *AccountService) GetNextAuthenticatedScraper() (*twitterscraper.Scraper, *TwitterAccount, error) {
+func (as *AccountService) GetAuthenticatedScraper() (*twitterscraper.Scraper, *TwitterAccount, error) {
 	baseDir := "/root/.masa"
 
 	account := as.accountManager.GetNextAccount()
@@ -186,7 +187,7 @@ func (as *AccountService) GetNextAuthenticatedScraper() (*twitterscraper.Scraper
 
 func (as *AccountService) GetAccountSettings() (twitterscraper.AccountSettings, error) {
 	var settings twitterscraper.AccountSettings
-	s, account, err := as.GetNextAuthenticatedScraper()
+	s, account, err := as.GetAuthenticatedScraper()
 	if err != nil {
 		logrus.Errorf("failed to get scraper of %s, %v", account.Username, err)
 		return twitterscraper.AccountSettings{}, err
@@ -202,7 +203,7 @@ func (as *AccountService) GetAccountSettings() (twitterscraper.AccountSettings, 
 
 func (as *AccountService) GetAccountList() ([]twitterscraper.Account, error) {
 	var list twitterscraper.AccountList
-	s, account, err := as.GetNextAuthenticatedScraper()
+	s, account, err := as.GetAuthenticatedScraper()
 	if err != nil {
 		logrus.Errorf("failed to get scraper of %s, %v", account.Username, err)
 		return []twitterscraper.Account{}, err
@@ -217,7 +218,7 @@ func (as *AccountService) GetAccountList() ([]twitterscraper.Account, error) {
 }
 
 func (as *AccountService) GetFlow(data map[string]interface{}) (*twitterscraper.Flow, error) {
-	s, account, err := as.GetNextAuthenticatedScraper()
+	s, account, err := as.GetAuthenticatedScraper()
 	if err != nil {
 		logrus.Errorf("failed to get scraper of %s, %v", account.Username, err)
 		return nil, err
@@ -253,26 +254,61 @@ func (as *AccountService) Logout() error {
 	return nil
 }
 
-func (as *AccountService) GetAccessToken() (string, error) {
+func (as *AccountService) IsLoggedIn() (twitterscraper.VerifyCredentials, error) {
+	s, account, err := as.GetAuthenticatedScraper()
+	if err != nil {
+		logrus.Errorf("failed to get scraper of %s, %v", account.Username, err)
+		return twitterscraper.VerifyCredentials{}, err
+	}
+	s.SetBearerToken(bearerToken1)
+	req, err := http.NewRequest("GET", "https://api.twitter.com/1.1/account/verify_credentials.json", nil)
+	if err != nil {
+		return twitterscraper.VerifyCredentials{}, err
+	}
+	var verify twitterscraper.VerifyCredentials
+	err = s.RequestAPI(req, &verify)
+	return verify, err
+}
+
+func (as *AccountService) GetGuestToken() (map[string]interface{}, error) {
+	s, account, err := as.GetAuthenticatedScraper()
+	if err != nil {
+		logrus.Errorf("failed to get scraper of %s, %v", account.Username, err)
+		return nil, err
+	}
+	req, err := http.NewRequest("POST", "https://api.twitter.com/1.1/guest/activate.json", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+s.GetBearerToken())
+
+	var jsn map[string]interface{}
+	err = s.RequestAPI(req, &jsn)
+	if err != nil {
+		return nil, err
+	}
+
+	return jsn, nil
+}
+
+func (as *AccountService) GetAccessToken() (map[string]interface{}, error) {
 	req, err := http.NewRequest("POST", "https://api.twitter.com/oauth2/token", strings.NewReader("grant_type=client_credentials"))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.SetBasicAuth(consumerKey, consumerSecret)
 
-	s, account, err := as.GetNextAuthenticatedScraper()
+	s, account, err := as.GetAuthenticatedScraper()
 	if err != nil {
 		logrus.Errorf("failed to get scraper of %s, %v", account.Username, err)
-		return "", err
+		return nil, err
 	}
 
-	var a struct {
-		AccessToken string `json:"access_token"`
-	}
-	err = s.RequestAPI(req, &a)
+	var response map[string]interface{}
+	err = s.RequestAPI(req, &response)
 
-	return a.AccessToken, err
+	return response, err
 }
 
 func NewScraper(account *TwitterAccount, cookieDir string) *twitterscraper.Scraper {

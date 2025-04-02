@@ -129,6 +129,7 @@ type spaceUser struct {
 	} `json:"user_results"`
 }
 
+type SpaceData space
 type space struct {
 	Data struct {
 		AudioSpace struct {

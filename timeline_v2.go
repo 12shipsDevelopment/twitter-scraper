@@ -184,6 +184,7 @@ func (timeline *timelineV2) parseTweets() ([]*Tweet, string) {
 	return tweets, cursor
 }
 
+type BookmarksTimelineV2 bookmarksTimelineV2
 type bookmarksTimelineV2 struct {
 	Data struct {
 		Bookmarks struct {
@@ -265,6 +266,7 @@ func (timeline *timelineV2) parseUsers() ([]*Profile, string) {
 	return users, cursor
 }
 
+type ThreadedConversation threadedConversation
 type threadedConversation struct {
 	Data struct {
 		ThreadedConversationWithInjectionsV2 struct {

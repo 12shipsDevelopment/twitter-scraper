@@ -31,7 +31,7 @@ const (
 )
 
 type Flow flow
-
+type VerifyCredentials verifyCredentials
 type (
 	OpenAccount struct {
 		OAuthToken       string `json:"oauth_token"`

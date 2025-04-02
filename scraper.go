@@ -181,8 +181,17 @@ func (s *Scraper) GetUserAgent() string {
 	return s.userAgent
 }
 
+func (s *Scraper) SetBearerToken(bearerToken string) {
+	s.bearerToken = bearerToken
+}
+
 func (s *Scraper) GetBearerToken() string {
 	return s.bearerToken
+}
+
+func (s *Scraper) SetGuestToken(guestToken string) {
+	s.guestToken = guestToken
+	s.guestCreatedAt = time.Now()
 }
 
 func (s *Scraper) GetGuestTokenStr() string {

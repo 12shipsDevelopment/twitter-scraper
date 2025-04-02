@@ -15,6 +15,7 @@ type NewTweet struct {
 	Medias []*Media
 }
 
+type NewTweetData newTweet
 type newTweet struct {
 	Data struct {
 		CreateTweet struct {

@@ -102,6 +102,7 @@ func (result *scheduleTweet) parse() *ScheduledTweet {
 	return tweet
 }
 
+type ScheduleTweets scheduleTweets
 type scheduleTweets struct {
 	Data struct {
 		Viewer struct {

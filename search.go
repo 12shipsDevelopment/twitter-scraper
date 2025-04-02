@@ -9,6 +9,7 @@ import (
 
 const searchURL = "https://twitter.com/i/api/graphql/nK1dw4oV3k4w5TdtcAdSww/SearchTimeline"
 
+type SearchTimeline searchTimeline
 type searchTimeline struct {
 	Data struct {
 		SearchByRawQuery struct {

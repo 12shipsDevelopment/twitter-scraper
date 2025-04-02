@@ -8,6 +8,7 @@ import (
 )
 
 // legacy timeline JSON object
+type TimelineV1 timelineV1
 type timelineV1 struct {
 	GlobalObjects struct {
 		Tweets map[string]legacyTweet `json:"tweets"`
