@@ -8,7 +8,10 @@ import (
 )
 
 type Config struct {
-	Port int
+	Port     int
+	CrtFile  string
+	KeyFile  string
+	Accounts []string
 }
 
 func LoadConfigs() *Config {
@@ -21,7 +24,10 @@ func LoadConfigs() *Config {
 	}
 
 	c := &Config{
-		Port: viper.GetInt("service.port"),
+		Port:     viper.GetInt("service.port"),
+		CrtFile:  viper.GetString("service.crt-file"),
+		KeyFile:  viper.GetString("service.key-file"),
+		Accounts: viper.GetStringSlice("service.accounts"),
 	}
 
 	log.Println(c.GetConfigs())
@@ -33,7 +39,10 @@ func LoadConfigs() *Config {
 func (c *Config) GetConfigs() string {
 	configStr :=
 		fmt.Sprintln("Configurations...") +
-			fmt.Sprintln("Port:", c.Port)
+			fmt.Sprintln("Port:", c.Port) +
+			fmt.Sprintln("CrtFile:", c.CrtFile) +
+			fmt.Sprintln("KeyFile:", c.KeyFile) +
+			fmt.Sprintln("Accounts:", c.Accounts)
 
 	return configStr
 }

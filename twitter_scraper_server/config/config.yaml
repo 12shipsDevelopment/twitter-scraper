@@ -1,2 +1,4 @@
 service:
-  port: 8888
+  port: 443
+  crt-file: server.crt
+  key-file: server.key

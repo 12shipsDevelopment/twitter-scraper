@@ -5,7 +5,6 @@ go 1.23.6
 require (
 	github.com/gin-gonic/gin v1.10.0
 	github.com/imperatrona/twitter-scraper v0.0.0-00010101000000-000000000000
-	github.com/joho/godotenv v1.5.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/viper v1.20.1
 )

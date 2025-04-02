@@ -21,5 +21,6 @@ func main() {
 	handlers.HandleTweetsRoutes(router, cfg, as)
 
 	logrus.Info("Server started on :", cfg.Port)
-	router.Run(fmt.Sprintf(":%d", cfg.Port))
+
+	router.RunTLS(fmt.Sprintf(":%d", cfg.Port), cfg.CrtFile, cfg.KeyFile)
 }

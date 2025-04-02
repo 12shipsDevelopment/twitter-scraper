@@ -14,7 +14,6 @@ import (
 	"twitter_scraper_server/config"
 
 	twitterscraper "github.com/imperatrona/twitter-scraper"
-	"github.com/joho/godotenv"
 	"github.com/sirupsen/logrus"
 )
 
@@ -72,33 +71,6 @@ func (manager *TwitterAccountManager) MarkAccountRateLimited(account *TwitterAcc
 	account.RateLimitedUntil = time.Now().Add(GetRateLimitDuration())
 }
 
-func (manager *TwitterAccountManager) getAccountsCount() int {
-	return len(manager.accounts)
-}
-
-func (manager *TwitterAccountManager) handleRateLimit(err error, account *TwitterAccount) bool {
-	if strings.Contains(err.Error(), "Rate limit exceeded") {
-		manager.MarkAccountRateLimited(account)
-		logrus.Warnf("rate limited: %s", account.Username)
-		return true
-	}
-	return false
-}
-
-func loadAccountsFromConfig() []*TwitterAccount {
-	err := godotenv.Load()
-	if err != nil {
-		logrus.Fatalf("error loading .env file: %v", err)
-	}
-
-	accountsEnv := os.Getenv("TWITTER_ACCOUNTS")
-	if accountsEnv == "" {
-		logrus.Fatal("TWITTER_ACCOUNTS not set in .env file")
-	}
-
-	return parseAccounts(strings.Split(accountsEnv, ","))
-}
-
 func parseAccounts(accountPairs []string) []*TwitterAccount {
 	return filterMap(accountPairs, func(pair string) (*TwitterAccount, bool) {
 		credentials := strings.Split(pair, ":")
@@ -153,19 +125,34 @@ func (manager *TwitterAccountManager) GetAccountByUsername(username string) *Twi
 
 type AccountService struct {
 	cfg            *config.Config
-	scrapers       []*twitterscraper.Scraper
 	accountManager *TwitterAccountManager
+	currentScraper *twitterscraper.Scraper
 }
 
 func NewAccountService(cfg *config.Config) *AccountService {
-	scrapers := make([]*twitterscraper.Scraper, 0)
-	scrapers = append(scrapers, twitterscraper.New())
-	accounts := loadAccountsFromConfig()
+	accounts := parseAccounts(cfg.Accounts)
 	accountManager := NewTwitterAccountManager(accounts)
 
-	as := &AccountService{cfg, scrapers, accountManager}
+	as := &AccountService{cfg, accountManager, nil}
 
 	return as
+}
+
+func (as *AccountService) GetAccountsCount() int {
+	return len(as.accountManager.accounts)
+}
+
+func (as *AccountService) HandleRateLimit(err error, account *TwitterAccount) bool {
+	if strings.Contains(err.Error(), "Rate limit exceeded") {
+		as.accountManager.MarkAccountRateLimited(account)
+		logrus.Warnf("rate limited: %s", account.Username)
+		return true
+	}
+	return false
+}
+
+func (as *AccountService) GetCurrentScraper() *twitterscraper.Scraper {
+	return as.currentScraper
 }
 
 func (as *AccountService) GetAuthenticatedScraper() (*twitterscraper.Scraper, *TwitterAccount, error) {
@@ -181,16 +168,21 @@ func (as *AccountService) GetAuthenticatedScraper() (*twitterscraper.Scraper, *T
 		logrus.Error(err)
 		return nil, account, err
 	}
+	as.currentScraper = scraper
 	account.LastScraped = time.Now()
 	return scraper, account, nil
 }
 
 func (as *AccountService) GetAccountSettings() (twitterscraper.AccountSettings, error) {
 	var settings twitterscraper.AccountSettings
-	s, account, err := as.GetAuthenticatedScraper()
-	if err != nil {
-		logrus.Errorf("failed to get scraper of %s, %v", account.Username, err)
-		return twitterscraper.AccountSettings{}, err
+	s := as.currentScraper
+	if s == nil {
+		newScraper, account, err := as.GetAuthenticatedScraper()
+		if err != nil {
+			logrus.Errorf("failed to get scraper of %s, %v", account.Username, err)
+			return twitterscraper.AccountSettings{}, err
+		}
+		s = newScraper
 	}
 	req, err := newRequest("GET", "https://api.twitter.com/1.1/account/settings.json", true)
 	if err != nil {
@@ -203,10 +195,14 @@ func (as *AccountService) GetAccountSettings() (twitterscraper.AccountSettings, 
 
 func (as *AccountService) GetAccountList() ([]twitterscraper.Account, error) {
 	var list twitterscraper.AccountList
-	s, account, err := as.GetAuthenticatedScraper()
-	if err != nil {
-		logrus.Errorf("failed to get scraper of %s, %v", account.Username, err)
-		return []twitterscraper.Account{}, err
+	s := as.currentScraper
+	if s == nil {
+		newScraper, account, err := as.GetAuthenticatedScraper()
+		if err != nil {
+			logrus.Errorf("failed to get scraper of %s, %v", account.Username, err)
+			return nil, err
+		}
+		s = newScraper
 	}
 	req, err := newRequest("GET", "https://api.twitter.com/1.1/account/multi/list.json", true)
 	if err != nil {
@@ -218,10 +214,14 @@ func (as *AccountService) GetAccountList() ([]twitterscraper.Account, error) {
 }
 
 func (as *AccountService) GetFlow(data map[string]interface{}) (*twitterscraper.Flow, error) {
-	s, account, err := as.GetAuthenticatedScraper()
-	if err != nil {
-		logrus.Errorf("failed to get scraper of %s, %v", account.Username, err)
-		return nil, err
+	s := as.currentScraper
+	if s == nil {
+		newScraper, account, err := as.GetAuthenticatedScraper()
+		if err != nil {
+			logrus.Errorf("failed to get scraper of %s, %v", account.Username, err)
+			return nil, err
+		}
+		s = newScraper
 	}
 	headers := http.Header{
 		"Authorization":             []string{"Bearer " + s.GetBearerToken()},
@@ -255,10 +255,14 @@ func (as *AccountService) Logout() error {
 }
 
 func (as *AccountService) IsLoggedIn() (twitterscraper.VerifyCredentials, error) {
-	s, account, err := as.GetAuthenticatedScraper()
-	if err != nil {
-		logrus.Errorf("failed to get scraper of %s, %v", account.Username, err)
-		return twitterscraper.VerifyCredentials{}, err
+	s := as.currentScraper
+	if s == nil {
+		newScraper, account, err := as.GetAuthenticatedScraper()
+		if err != nil {
+			logrus.Errorf("failed to get scraper of %s, %v", account.Username, err)
+			return twitterscraper.VerifyCredentials{}, err
+		}
+		s = newScraper
 	}
 	s.SetBearerToken(bearerToken1)
 	req, err := http.NewRequest("GET", "https://api.twitter.com/1.1/account/verify_credentials.json", nil)
@@ -271,10 +275,14 @@ func (as *AccountService) IsLoggedIn() (twitterscraper.VerifyCredentials, error)
 }
 
 func (as *AccountService) GetGuestToken() (map[string]interface{}, error) {
-	s, account, err := as.GetAuthenticatedScraper()
-	if err != nil {
-		logrus.Errorf("failed to get scraper of %s, %v", account.Username, err)
-		return nil, err
+	s := as.currentScraper
+	if s == nil {
+		newScraper, account, err := as.GetAuthenticatedScraper()
+		if err != nil {
+			logrus.Errorf("failed to get scraper of %s, %v", account.Username, err)
+			return nil, err
+		}
+		s = newScraper
 	}
 	req, err := http.NewRequest("POST", "https://api.twitter.com/1.1/guest/activate.json", nil)
 	if err != nil {
@@ -299,10 +307,14 @@ func (as *AccountService) GetAccessToken() (map[string]interface{}, error) {
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.SetBasicAuth(consumerKey, consumerSecret)
 
-	s, account, err := as.GetAuthenticatedScraper()
-	if err != nil {
-		logrus.Errorf("failed to get scraper of %s, %v", account.Username, err)
-		return nil, err
+	s := as.currentScraper
+	if s == nil {
+		newScraper, account, err := as.GetAuthenticatedScraper()
+		if err != nil {
+			logrus.Errorf("failed to get scraper of %s, %v", account.Username, err)
+			return nil, err
+		}
+		s = newScraper
 	}
 
 	var response map[string]interface{}
