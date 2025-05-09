@@ -18,11 +18,13 @@ func (s *Scraper) RequestAPI(req *http.Request, target interface{}) error {
 	}
 
 	if err := s.prepareRequest(req); err != nil {
+		fmt.Println("Error prepare:", err)
 		return err
 	}
 
 	resp, err := s.client.Do(req)
 	if err != nil {
+		fmt.Println("Error:", err)
 		return err
 	}
 	defer resp.Body.Close()
@@ -83,6 +85,7 @@ func (s *Scraper) setCSRFToken(req *http.Request) {
 func (s *Scraper) handleResponse(resp *http.Response, target interface{}) error {
 	content, err := io.ReadAll(resp.Body)
 	if err != nil {
+		fmt.Println("Error1:", err)
 		return err
 	}
 
