@@ -197,6 +197,140 @@ func getTweetTimeline(ctx context.Context, query string, maxTweetsNbr int, fetch
 	return channel
 }
 
+func getTweetTimelineForSubnet13(ctx context.Context, query string, maxTweetsNbr int, fetchFunc fetchTweetFuncForSubnet13) <-chan *Subnet13TweetResult {
+	channel := make(chan *Subnet13TweetResult)
+	go func(query string) {
+		defer close(channel)
+		var nextCursor string
+		tweetsNbr := 0
+		for tweetsNbr < maxTweetsNbr {
+			select {
+			case <-ctx.Done():
+				channel <- &Subnet13TweetResult{Error: ctx.Err()}
+				return
+			default:
+			}
+
+			tweets, next, err := fetchFunc(query, maxTweetsNbr, nextCursor)
+			if err != nil {
+				channel <- &Subnet13TweetResult{Error: err}
+				return
+			}
+
+			if len(tweets) == 0 {
+				break
+			}
+
+			for _, tweet := range tweets {
+				select {
+				case <-ctx.Done():
+					channel <- &Subnet13TweetResult{Error: ctx.Err()}
+					return
+				default:
+				}
+
+				if tweetsNbr < maxTweetsNbr {
+					nextCursor = next
+					channel <- &Subnet13TweetResult{TweetForSubnet13: *tweet}
+				} else {
+					break
+				}
+				tweetsNbr++
+			}
+		}
+	}(query)
+	return channel
+}
+
+func parseLegacyTweetForSubnet13(user *legacyUser, tweet *legacyTweet) *TweetForSubnet13 {
+	tweetID := tweet.IDStr
+	if tweetID == "" {
+		return nil
+	}
+	text := expandURLs(tweet.FullText, tweet.Entities.URLs, tweet.ExtendedEntities.Media)
+	username := user.ScreenName
+	name := user.Name
+	tw := &TweetForSubnet13{
+		ConversationID: tweet.ConversationIDStr,
+		ID:             tweetID,
+		Likes:          tweet.FavoriteCount,
+		Name:           name,
+		PermanentURL:   fmt.Sprintf("https://twitter.com/%s/status/%s", username, tweetID),
+		Replies:        tweet.ReplyCount,
+		Retweets:       tweet.RetweetCount,
+		Text:           text,
+		UserID:         tweet.UserIDStr,
+		Username:       username,
+		FollowersCount: user.FollowersCount,
+		FollowingCount: user.FavouritesCount,
+		IsVerified:     user.Verified,
+	}
+
+	tm, err := time.Parse(time.RubyDate, tweet.CreatedAt)
+	if err == nil {
+		tw.Timestamp = tm.Unix()
+	}
+
+	if tweet.QuotedStatusIDStr != "" {
+		tw.IsQuoted = true
+		tw.QuotedStatusID = tweet.QuotedStatusIDStr
+	}
+	if tweet.InReplyToStatusIDStr != "" {
+		tw.IsReply = true
+		tw.InReplyToStatusID = tweet.InReplyToStatusIDStr
+	}
+	if tweet.RetweetedStatusIDStr != "" || tweet.RetweetedStatusResult.Result != nil {
+		tw.IsRetweet = true
+	}
+
+	if tweet.Views.Count != "" {
+		views, viewsErr := strconv.Atoi(tweet.Views.Count)
+		if viewsErr != nil {
+			views = 0
+		}
+		tw.Views = views
+	}
+
+	for _, hash := range tweet.Entities.Hashtags {
+		tw.Hashtags = append(tw.Hashtags, hash.Text)
+	}
+
+	for _, media := range tweet.ExtendedEntities.Media {
+		if media.Type == "video" {
+			video := MediaForSubnet13{Type: media.Type}
+			maxBitrate := 0
+			for _, variant := range media.VideoInfo.Variants {
+				if variant.Bitrate > maxBitrate {
+					video.URL = strings.TrimSuffix(variant.URL, "?tag=10")
+					maxBitrate = variant.Bitrate
+				}
+			}
+			tw.Media = append(tw.Media, video)
+		} else if media.Type == "animated_gif" {
+			gif := MediaForSubnet13{Type: media.Type}
+			maxBitrate := 0
+			for _, variant := range media.VideoInfo.Variants {
+				if variant.Bitrate >= maxBitrate {
+					gif.URL = variant.URL
+					maxBitrate = variant.Bitrate
+				}
+			}
+			tw.Media = append(tw.Media, gif)
+		} else if media.Type == "photo" {
+			tw.Media = append(tw.Media, MediaForSubnet13{
+				URL:  media.MediaURLHttps,
+				Type: media.Type,
+			})
+		}
+	}
+
+	for _, url := range tweet.Entities.URLs {
+		tw.URLs = append(tw.URLs, url.ExpandedURL)
+	}
+
+	return tw
+}
+
 func parseLegacyTweet(user *legacyUser, tweet *legacyTweet) *Tweet {
 	tweetID := tweet.IDStr
 	if tweetID == "" {

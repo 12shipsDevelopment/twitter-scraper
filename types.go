@@ -77,6 +77,38 @@ type (
 		SensitiveContent  bool
 	}
 
+	MediaForSubnet13 struct {
+		URL  string
+		Type string
+	}
+	TweetForSubnet13 struct {
+		ConversationID    string
+		Media             []MediaForSubnet13
+		Hashtags          []string
+		ID                string
+		InReplyToStatus   *Tweet
+		InReplyToStatusID string
+		IsQuoted          bool
+		IsReply           bool
+		IsRetweet         bool
+		Likes             int
+		Name              string
+		PermanentURL      string
+		QuotedStatus      *Tweet
+		QuotedStatusID    string
+		Replies           int
+		Retweets          int
+		Text              string
+		Timestamp         int64
+		URLs              []string
+		UserID            string
+		Username          string
+		Views             int
+		FollowersCount    int
+		FollowingCount    int
+		IsVerified        bool
+	}
+
 	// ProfileResult of scrapping.
 	ProfileResult struct {
 		Profile
@@ -86,6 +118,11 @@ type (
 	// TweetResult of scrapping.
 	TweetResult struct {
 		Tweet
+		Error error
+	}
+
+	Subnet13TweetResult struct {
+		TweetForSubnet13
 		Error error
 	}
 
@@ -267,8 +304,9 @@ type (
 		} `json:"bounding_box"`
 	}
 
-	fetchProfileFunc func(query string, maxProfilesNbr int, cursor string) ([]*Profile, string, error)
-	fetchTweetFunc   func(query string, maxTweetsNbr int, cursor string) ([]*Tweet, string, error)
+	fetchProfileFunc          func(query string, maxProfilesNbr int, cursor string) ([]*Profile, string, error)
+	fetchTweetFunc            func(query string, maxTweetsNbr int, cursor string) ([]*Tweet, string, error)
+	fetchTweetFuncForSubnet13 func(query string, maxTweetsNbr int, cursor string) ([]*TweetForSubnet13, string, error)
 
 	legacyExtendedProfile struct {
 		Birthdate struct {

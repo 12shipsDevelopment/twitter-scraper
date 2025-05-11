@@ -61,6 +61,42 @@ func (timeline *searchTimeline) parseTweets() ([]*Tweet, string) {
 	return tweets, cursor
 }
 
+func (timeline *searchTimeline) parseTweetsForSubnet13() ([]*TweetForSubnet13, string) {
+	tweets := make([]*TweetForSubnet13, 0)
+	cursor := ""
+	for _, instruction := range timeline.Data.SearchByRawQuery.SearchTimeline.Timeline.Instructions {
+		if instruction.Type == "TimelineAddEntries" || instruction.Type == "TimelineReplaceEntry" {
+			if instruction.Entry.Content.CursorType == "Bottom" {
+				cursor = instruction.Entry.Content.Value
+				continue
+			}
+			for _, entry := range instruction.Entries {
+				if entry.Content.ItemContent.TweetDisplayType == "Tweet" {
+					var legacy *legacyTweet = &entry.Content.ItemContent.TweetResults.Result.Legacy
+					var user *legacyUser = &entry.Content.ItemContent.TweetResults.Result.Core.UserResults.Result.Legacy
+					if entry.Content.ItemContent.TweetResults.Result.Typename == "TweetWithVisibilityResults" {
+						legacy = &entry.Content.ItemContent.TweetResults.Result.Tweet.Legacy
+						user = &entry.Content.ItemContent.TweetResults.Result.Tweet.Core.UserResults.Result.Legacy
+					}
+					if tweet := parseLegacyTweetForSubnet13(user, legacy); tweet != nil {
+						var views = entry.Content.ItemContent.TweetResults.Result.Views.Count
+						if entry.Content.ItemContent.TweetResults.Result.Typename == "TweetWithVisibilityResults" {
+							views = entry.Content.ItemContent.TweetResults.Result.Tweet.Views.Count
+						}
+						if tweet.Views == 0 && views != "" {
+							tweet.Views, _ = strconv.Atoi(views)
+						}
+						tweets = append(tweets, tweet)
+					}
+				} else if entry.Content.CursorType == "Bottom" {
+					cursor = entry.Content.Value
+				}
+			}
+		}
+	}
+	return tweets, cursor
+}
+
 func (timeline *searchTimeline) parseUsers() ([]*Profile, string) {
 	profiles := make([]*Profile, 0)
 	cursor := ""
@@ -90,6 +126,11 @@ func (timeline *searchTimeline) parseUsers() ([]*Profile, string) {
 // SearchTweets returns channel with tweets for a given search query
 func (s *Scraper) SearchTweets(ctx context.Context, query string, maxTweetsNbr int) <-chan *TweetResult {
 	return getTweetTimeline(ctx, query, maxTweetsNbr, s.FetchSearchTweets)
+}
+
+// SearchTweets returns channel with tweets for a given search query
+func (s *Scraper) SearchTweetsForSubnet13(ctx context.Context, query string, maxTweetsNbr int) <-chan *Subnet13TweetResult {
+	return getTweetTimelineForSubnet13(ctx, query, maxTweetsNbr, s.FetchSearchTweetsForSubnet13)
 }
 
 // SearchTweets returns channel with tweets for a given search query
@@ -186,6 +227,16 @@ func (s *Scraper) FetchSearchTweets(query string, maxTweetsNbr int, cursor strin
 		return nil, "", err
 	}
 	tweets, nextCursor := timeline.parseTweets()
+	return tweets, nextCursor, nil
+}
+
+// FetchSearchTweets gets tweets for a given search query, via the Twitter frontend API
+func (s *Scraper) FetchSearchTweetsForSubnet13(query string, maxTweetsNbr int, cursor string) ([]*TweetForSubnet13, string, error) {
+	timeline, err := s.getSearchTimeline(query, maxTweetsNbr, cursor)
+	if err != nil {
+		return nil, "", err
+	}
+	tweets, nextCursor := timeline.parseTweetsForSubnet13()
 	return tweets, nextCursor, nil
 }
 
