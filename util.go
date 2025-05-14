@@ -247,7 +247,6 @@ func parseLegacyTweetForSubnet13(user *legacyUser, tweet *legacyTweet) *TweetFor
 	if tweetID == "" {
 		return nil
 	}
-	text := expandURLs(tweet.FullText, tweet.Entities.URLs, tweet.ExtendedEntities.Media)
 	username := user.ScreenName
 	name := user.Name
 	tw := &TweetForSubnet13{
@@ -258,11 +257,11 @@ func parseLegacyTweetForSubnet13(user *legacyUser, tweet *legacyTweet) *TweetFor
 		PermanentURL:   fmt.Sprintf("https://twitter.com/%s/status/%s", username, tweetID),
 		Replies:        tweet.ReplyCount,
 		Retweets:       tweet.RetweetCount,
-		Text:           text,
+		Text:           tweet.FullText,
 		UserID:         tweet.UserIDStr,
 		Username:       username,
 		FollowersCount: user.FollowersCount,
-		FollowingCount: user.FavouritesCount,
+		FollowingCount: user.FriendsCount,
 		IsVerified:     user.Verified,
 	}
 

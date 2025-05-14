@@ -153,11 +153,18 @@ func (s *Scraper) IsLoggedIn() bool {
 	s.setBearerToken(bearerToken1)
 	req, err := http.NewRequest("GET", "https://api.twitter.com/1.1/account/verify_credentials.json", nil)
 	if err != nil {
+		fmt.Println("Error creating verify credentials request:", err)
 		return false
 	}
 	var verify verifyCredentials
 	err = s.RequestAPI(req, &verify)
 	if err != nil || verify.Errors != nil {
+		if err != nil {
+			fmt.Println("Error verifying credentials:", err)
+		}
+		if verify.Errors != nil {
+			fmt.Println("Error verifying credentials:", verify.Errors[0].Message)
+		}
 		s.isLogged = false
 		s.setBearerToken(bearerToken)
 	} else {
